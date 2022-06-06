@@ -1,0 +1,1028 @@
+/**
+ * 
+ * 创建于:2014-9-11<br>
+ * 版权所有(C) 2014 深圳市银之杰科技股份有限公司<br>
+ * 人员登录日志查询
+ * 
+ * @author guoshixuan
+ * @version 1.0
+ */
+
+var login_People = null;
+
+var returnValue;
+
+var peopleType="";//标记登录人是什么人；1：审批人；2：管理员；0：普通用户
+
+var paramCs;
+
+/**
+ * 初始化Grid数据
+ */
+$(function() {
+	$("#sealapprovalpeople").attr("disabled","true");
+	initPage();
+	initPeopleType();
+	login_People = top.loginPeopleInfo;
+	$("#sealOrgNo_Item").val(login_People.orgName+"("+login_People.orgNo+")");
+	$("#sealOrgNo_Form").val(login_People.orgNo);
+	$("#organizationSid_Item").val(login_People.orgName+"("+login_People.orgNo+")");
+	initTwoDialog();
+	initApproverDialog();
+	$("#selecOppeople").click(function(){
+		apprbtn();
+	});
+	$("#selectBtn").click(function(){
+		var sealautoId= $("#sealautoId").val();
+		if(sealautoId==""){
+			alert("没有印章！");
+			return;
+		}
+		approverbtn();
+	});
+	//重置的时候清空分发权限select选项
+	$("span:contains('重置(Reset)')").click(function(){
+		$("#reviceSealName").find("option").remove();
+	})
+	
+	$("#ge_startDate").blur(function(){
+		var ge_endDate = $("#ge_endDate").val();
+		var le_endDate = $("#le_endDate").val();
+		if(ge_endDate != "" || le_endDate != ""){
+			$("#ge_startDate").val("");
+			alert("授权生效日条件与授权截止日条件只能二选一：现在已选择授权截止日条件！");
+		}
+	});
+	
+	$("#le_startDate").blur(function(){
+		var ge_endDate = $("#ge_endDate").val();
+		var le_endDate = $("#le_endDate").val();
+		if(ge_endDate != "" || le_endDate != ""){
+			$("#le_startDate").val("");
+			alert("授权生效日条件与授权截止日条件只能二选一：现在已选择授权截止日条件！");
+		}
+	});
+	
+	$("#ge_endDate").blur(function(){
+		var ge_startDate = $("#ge_startDate").val();
+		var le_startDate = $("#le_startDate").val();
+		if(ge_startDate != "" || le_startDate != ""){
+			$("#ge_endDate").val("");
+			alert("授权生效日条件与授权截止日条件只能二选一：现在已选择授权生效日条件！");
+		}
+	});
+	
+	$("#le_endDate").blur(function(){
+		var ge_startDate = $("#ge_startDate").val();
+		var le_startDate = $("#le_startDate").val();
+		if(ge_startDate != "" || le_startDate != ""){
+			$("#le_endDate").val("");
+			alert("授权生效日条件与授权截止日条件只能二选一：现在已选择授权生效日条件！");
+		}
+	});
+});
+
+function initPeopleType(){
+	$.ajax({
+		type : "post",
+		url : ctx + "/transferPowerInfoAction_isApprPeople.action",
+		data : {
+			
+		},
+		dataType : "json",
+		async : false,
+		complete : function(XMLHttpRequest, textStatus) {
+			if (XMLHttpRequest.readyState == "0" || XMLHttpRequest.status != "200") {
+				//result.response = "服务器或网络异常";
+			}
+		},
+		success : function(response) {
+			peopleType=response.apprOrManager;
+			if(peopleType!='1'&&peopleType!='2'){//登录人是普通用户
+				$("#reserveBtn").attr("disabled", "disabled");
+			}
+		}
+	});
+}
+
+/**
+ * 初始化“接收审批人”列表
+ */
+function initTwoDialog() {
+	$("#dialogTwo").dialog({
+		autoOpen : false,
+		resizable : false,
+		height : $(window).height(),
+		width : $(window).width()/9*8,
+		modal : true,
+		position : {
+			at : "center"
+		},
+		open : function(event, ui) {
+			$(".ui-dialog-titlebar").show();
+			$(".ui-dialog-titlebar-close").show();
+		}
+	});
+};
+
+/**
+ * 初始化审批人列表
+ */
+function initApproverDialog(){
+	$("#approverDialog").dialog({
+		autoOpen : false,
+		resizable : false,
+		height : $(window).height(),
+		width : $(window).width()/9*8,
+		modal : true,
+		position : {
+			at : "center"
+		},
+		open : function(event, ui) {
+			$(".ui-dialog-titlebar").show();
+			$(".ui-dialog-titlebar-close").show();
+		}
+	});
+}
+
+function choseOrganizationItem(organizationNo,type) {
+	var organizationSid = top.loginPeopleInfo.orgSid;
+	$("#sealOrgNo_Item").dialogOrgTree("radio", "00000000000000000000000000000000", false, null,null, function(event, treeId, treeNode){
+		if(treeNode){
+			$("#"+organizationNo+"_Item").val(treeNode.organizationName+"("+treeNode.organizationNo+")");
+			$("#"+organizationNo + "_Form").val(treeNode.organizationNo);
+			$("#orgSid").val(treeNode.sid);
+		}
+	});
+}
+
+/**
+ * 初始化“接收人”数据
+ */
+function initPeople() {
+	var pageHeaderHeight = $(".pageHeader").css("height");
+	var pageContentWidth = $(".pageContent").width() - 190;
+	pageHeaderHeight = pageHeaderHeight.substr(0, pageHeaderHeight.length - 2);
+	var tableHeight = document.documentElement.clientHeight - pageHeaderHeight + 6 - 50 * 2;
+	$("#peopleList").jqGrid(
+			{
+				width : pageContentWidth,
+				height : tableHeight + "px",
+				url : ctx + "/peopleUseSeal/peopleUseSealInfoAction_queryPeople.action",
+				multiselect : false,
+				rowNum : 20,
+				rownumbers : true,
+				viewrecords : true,
+				multiselect: true,
+				rowList : [ 20, 50, 100 ],
+				colNames : [ "","用户姓名(User Name)", "用户代码(User Code)"/*, "角色"*/],
+				colModel : [
+						{
+							name : "sid",
+							index : "sid",
+							align : "center",
+							sortable : false,
+							hidden:true
+						},
+						{
+							name : "peopleName",
+							index : "peopleName",
+							align : "center",
+							sortable : false
+						},
+						{
+							name : "peopleCode",
+							index : "peopleCode",
+							align : "center",
+							sortable : false
+						} ],
+				pager : $("#peoplePager"),
+				gridComplete: function() {
+		            var rowIds = jQuery("#peopleList").jqGrid("getDataIDs");
+		            for(var k=0; k<rowIds.length; k++) {
+		               var curRowData = jQuery("#peopleList").jqGrid('getRowData', rowIds[k]);
+		               var curChk = $("#"+rowIds[k]+"", jQuery("#peopleList")).find(":checkbox");
+		               curChk.attr('name', 'personnelCHKBOX');   //给每一个checkbox赋名字
+		               curChk.attr('value', curRowData['peopleCode']+','+curRowData['peopleName']);   //给checkbox赋值
+		            } 
+		        },
+				caption : "人员信息查询(Personnel List)"
+			}).trigger("reloadGrid");
+	$("#peopleList").navGrid("#peoplePager", {
+		edit : false,
+		add : false,
+		del : false,
+		search : false,
+		refresh : true
+	});
+};
+
+/**
+ * 审批人数据初始化
+ */  
+function initApprover(){
+	var sealautoId= $("#sealautoId").val();
+	var pageHeaderHeight = $(".pageHeader").css("height");
+	var pageContentWidth = $(".approverContent").width();
+	pageHeaderHeight = pageHeaderHeight.substr(0, pageHeaderHeight.length - 2);
+	var tableHeight = document.documentElement.clientHeight - pageHeaderHeight + 6 - 50 * 2;
+	$("#approverList").jqGrid({
+		width : pageContentWidth,
+		height : tableHeight + "px",
+		url : ctx + "/mechseal/task/sealUseInstallAction_queryPeopleByseal.action",
+		postData:{
+			"sealautoId":sealautoId,
+			"queryBean.params.like_sealOrgNo":login_People.orgNo
+		},
+		multiselect : false,
+		rowNum : 1000,
+		rownumbers : true,
+		sortable : false,// 是否排序
+		viewrecords : true,
+		multiselect: true,
+		rowList : [ 20, 50, 100 ],
+		colNames : ["","用户姓名(User Name)", "用户代码(User Code)", "所属机构(Affiliated Institution)"],
+		colModel : [
+	        {
+				name : "sid",
+				index : "sid",
+				align : "center",
+				hidden:true,
+				sortable : false
+			},
+			{
+				name : "peopleName",
+				index : "peopleName",
+				align : "center",
+				sortable : false
+			}, 
+			{
+				name : "peopleCode",
+				index : "peopleCode",
+				align : "center",
+				sortable : false
+			}, 
+			{
+				name : "orgName",
+				index : "orgName",
+				align : "center",
+				sortable : false
+			} 
+		],
+		pager : "#approverPager",
+		gridComplete: function() {
+            var rowIds = jQuery("#approverList").jqGrid("getDataIDs");
+            for(var k=0; k<rowIds.length; k++) {
+               var curRowData = jQuery("#approverList").jqGrid('getRowData', rowIds[k]);
+               var curChk = $("#"+rowIds[k]+"", jQuery("#approverList")).find(":checkbox");
+               curChk.attr('name', 'approverCHKBOX');   //给每一个checkbox赋名字
+               curChk.attr('value', curRowData['peopleCode']);   //给checkbox赋值
+            } 
+        },
+		caption : "人员选择列表(User Selection List)"
+	}).trigger("reloadGrid");
+	$("#approverList").navGrid("#approverPager", {
+		edit : false,
+		add : false,
+		del : false,
+		search : false,
+		refresh : true
+	});
+};
+
+
+/**
+ * 提交表单
+ */
+function commit() {
+	var checkedVals = new Array();
+	var checkedPeopleNames=new Array();
+	$(":checkbox[name=personnelCHKBOX][checked]").each(function(){
+		var people=$(this).val();
+		var peopleCode= people.split(',')[0];
+		var peopleName= people.split(',')[1];
+		checkedVals.push(peopleCode);
+		checkedPeopleNames.push(peopleName);
+	});
+	if(checkedVals.length < 1){
+		alert("请选择人员");
+		return;
+	}
+//	if(checkedVals.length != 1){
+//		alert("人员只能选择一个！");
+//		return;
+//	}
+//	$("#revicePeopleNo").val(checkedVals[0]);
+	$("#revicePeopleNo").val(checkedVals.toString());
+	$("#revicePeopleName").val(checkedPeopleNames.toString());
+	$("#peopleName").val("");
+	$("#peopleCode").val("");
+	$("#dialogTwo").dialog("close");
+};
+
+/**
+ * 提交审批人表单
+ */
+function commit1() {
+	var checkedVals = new Array();
+	$(":checkbox[name=approverCHKBOX][checked]").each(function(){
+		checkedVals.push($(this).val());
+	});
+	if(checkedVals.length < 1){
+		alert("请选择人员");
+		return;
+	}
+	if(checkedVals.length != 1){
+		alert("人员只能选择一个！");
+		return;
+	}
+	$("#sealapprovalpeople").val(checkedVals.toString());
+	gradeChange('sealapprovalpeople');
+	$("#approverDialog").dialog("close");
+};
+
+
+function apprbtn() {
+	$("#dialogTwo").dialog("open");
+	initPeople();
+//	initOrgTree();
+};
+
+function approverbtn(){
+	$("#approverDialog").dialog("open");
+	initApprover();
+}
+
+/**
+ * 初始化机构树
+ */
+function initOrgTree(){
+	$("#orgTreeDemo").orgTree("normal", top.loginPeopleInfo.orgSid,false,function(event, treeId, treeNode){
+		$("#personnelList_Item")[0].reset(); //查询表单
+		var organizationSid = treeNode.sid;
+		$("#organization_Item").val(treeNode.organizationName);
+		$("#organization").val(organizationSid);
+		alert(treeNode.organizationName);
+		$("#personnelList").jqGrid("search", "#personnelList_Item");
+	},null);
+}
+
+/**
+ * 查询
+ */
+function query() {
+	queryDatas();
+};
+/**
+ * 查询数据，执行查询（选择接收审批人）
+ */
+function queryDatas() {
+	$("#peopleList").jqGrid('search', "#queryFormTwo");
+};
+
+/**
+ * 重置查询条件（选择“接收审核人”）
+ */
+function resetMethod() {
+	$("#peopleName").val("");
+	$("#peopleCode").val("");
+	$("#dialogTwo").dialog("close");
+	initTwoDialog();
+};
+
+/**
+ * 重置查询条件（选择“审批人”）
+ */
+function resetMethod1() {
+	$("#peopleCode").val("");
+	$("#approverDialog").dialog("close");
+	initApproverDialog();
+};
+
+
+function initPage(){
+	var pageHeaderHeight = $(".pageHeader").css("height");
+	var pageContentWidth = $(".pageContent").width() -2;
+		pageHeaderHeight = pageHeaderHeight.substr(0,pageHeaderHeight.length - 2);
+	var tableHeight = document.documentElement.clientHeight -pageHeaderHeight + 6 - 50*2 ;
+	$("#AddTransferPowerInfoDLG").dialog({autoOpen: false,caption:"审批人权限委托授权", resizable: false,height: 307- (enableSupervisePeople=="false"?50:0),width: 460,modal: true,buttons: {
+			"保存(Save)": function() {
+				var applicationFormNo = $("#applicationFormNo").val();
+				var startDate = $("#_startDate").val();
+				if(startDate==null || startDate==""){
+					showMsg("开始日期不能为空");
+					return ;
+				}
+				var startTime = $("#startTime").val();
+				if(startTime==null || startTime==""){
+					showMsg("开始时间不能为空");
+					return ;
+				}
+				var endDate = $("#_endDate").val();
+				if(endDate==null || endDate==""){
+					showMsg("结束日期不能为空");
+					return ;
+				}
+				var endTime = $("#endTime").val();
+				if(endTime==null || endTime==""){
+					showMsg("结束时间不能为空");
+					return ;
+				}
+				var sealapprovalpeople = $("#sealapprovalpeople").val();
+				if(sealapprovalpeople==null || sealapprovalpeople==""){
+					showMsg("审核人不能为空");
+					return ;
+				}
+				
+				var reviceSealName = $("#reviceSealName").val();
+//				reviceSealName='上海分行业务章审批人';
+				if(reviceSealName==null || reviceSealName==""|| reviceSealName=="null"){
+					showMsg("分发权限名称不能为空");
+					return ;
+				}
+				
+				var revicePeopleNo = $("#revicePeopleNo").val();
+//				revicePeopleNo='cs5';
+				if(revicePeopleNo==null || revicePeopleNo==""){
+					showMsg("接收审核人不能为空");
+					return ;
+				}
+				
+				var param = {
+						"transferPowerInfo.applicationFormNo" : applicationFormNo,
+						"transferPowerInfo.startDate" : startDate,
+						"transferPowerInfo.startTime" : startTime,
+						"transferPowerInfo.endDate" : endDate,
+						"transferPowerInfo.endTime" : endTime,
+						"transferPowerInfo.sealapprovalpeople" : sealapprovalpeople,
+						"transferPowerInfo.reviceSealName" : reviceSealName,
+						"transferPowerInfo.revicePeopleNo" : revicePeopleNo
+					};
+				$.post(ctx + "/transferPowerInfoAction_selElectronicLockTask.action", param, function(data) {
+					var obj = $.parseJSON(data);
+					if(obj.data.msg == "已存在相关任务"){
+//						if(!confirm('同一印章同一被委托授权人已存在委托授权任务且出现时间重叠，是否继续该委托授权？\n（请联系系统管理员获得更多信息。）')){
+//							return;
+//						}
+					    $('.mask').removeClass('hide');
+					    paramCs = {
+					    		"transferPowerInfo.applicationFormNo" : applicationFormNo,
+								"transferPowerInfo.startDate" : startDate,
+								"transferPowerInfo.startTime" : startTime,
+								"transferPowerInfo.endDate" : endDate,
+								"transferPowerInfo.endTime" : endTime,
+								"transferPowerInfo.sealapprovalpeople" : sealapprovalpeople,
+								"transferPowerInfo.reviceSealName" : reviceSealName,
+								"transferPowerInfo.revicePeopleNo" : revicePeopleNo
+					    };
+//						$.post(ctx + "/transferPowerInfoAction_reserveW.action", param, function(data) {
+//							var obj = $.parseJSON(data);
+//							showMsg(obj.data.msg);
+//							if (obj.data.ok == true) {
+//								refresh();
+//								$("#AddTransferPowerInfoDLG").dialog("close");
+//							}
+//							return;
+//						});
+					}else{
+						$.post(ctx + "/transferPowerInfoAction_reserveW.action", param, function(data) {
+							var obj = $.parseJSON(data);
+							showMsg(obj.data.msg);
+							if (obj.data.ok == true) {
+								refresh();
+								$("#AddTransferPowerInfoDLG").dialog("close");
+							}
+							return;
+						});
+					}
+				});
+				
+				
+			},"重置(Reset)": function() {//2按钮
+				var applicationFormNo_ = $("#applicationFormNo").val();
+				$(this).find("form")[0].reset();
+				$("#applicationFormNo").val(applicationFormNo_);
+			}
+		},close: function() {
+			$("#_startDate").val("");
+			$("#startTime").val("00:00:00");
+			$("#_endDate").val("");
+			$("#endTime").val("00:00:00");
+			$("#revicePeoplePassword").val("");
+			$("#supervisePeoplePassword").val("");
+			$("#revicePeopleNo").empty();
+			$("#supervisePeopleNo").empty(); 
+			$("#msg").html("");
+		}
+	});
+	$("#transferPowerInfoList").jqGrid(
+		{
+			width : pageContentWidth,
+			height : tableHeight,
+			url : ctx + "/transferPowerInfoAction_showListWPage.action",
+			multiselect : false,
+			rowNum : 20,
+			rownumbers:true,
+			rowList : [ 20, 50, 100 ],
+			colNames : ["申请编号(Application Number)", "被委托授权审批人(Delegatee)",
+				"被委托授权审批人所属机构(Delegatee: Affiliated Institution)", "审批人(Authorizer)",
+				"审批人所属机构(Authorizer: Affiliated Institution)","委托授权权限名称(Delegated Authority)", "授权生效日(Delegation Start Date From)", /*"结束时间",*/"授权截止日(Delegation End Date From)","操作人(Operator)","状态(Status)","操作(Action)"],
+			colModel : [
+					{
+						name : "applicationFormNo",
+						index : "applicationFormNo",
+						align : "center",
+						width : 80,
+						sortable : false
+					},{
+						name : "revicePeopleName",
+						index : "revicePeopleName",
+						align : "center",
+						width : 80,
+						sortable : false,
+						formatter : function(value, options, rData) {
+							var revicePeopleName;
+							if(rData.revicePeopleNo!=null){
+								revicePeopleName =rData.revicePeopleName+ "("+rData.revicePeopleNo+")";
+							}
+							return revicePeopleName;
+						}
+					},
+					{
+						name : "revicePeopleOrgName",
+						index : "revicePeopleOrgName",
+						align : "center",
+						width : 80,
+						sortable : false,
+						formatter : function(value, options, rData) {
+							
+							return value;
+						}
+					},{
+						name : "transferPeopleNo",
+						index : "transferPeopleNo",
+						align : "center",
+						width : 80,
+						sortable : false,
+						formatter : function(value, options, rData) {
+							var revicePeopleName;
+							if(rData.revicePeopleNo!=null){
+								revicePeopleName =rData.transferPeopleName+ "("+rData.transferPeopleNo+")";
+							}
+							return revicePeopleName;
+						}
+					},
+					{
+						name : "transferPeopleOrgName",
+						index : "transferPeopleOrgName",
+						align : "center",
+						width : 80,
+						sortable : false,
+						formatter : function(value, options, rData) {
+							return value;
+						}
+					},
+					{
+						name : "reviceSealName",
+						index : "reviceSealName",
+						align : "center",
+						width : 80,
+						sortable : false,
+						formatter : function(value, options, rData) {
+							
+							return value;
+						}
+					},
+					{
+						name : "startTime",
+						index : "startTime",
+						align : "center",
+						width : 80,
+						sortable : false,
+						formatter : function(value, options, rData) {
+							var startTime = "";
+							if(rData.startDate!=null){
+								startTime += rData.startDate;
+							}
+							if(rData.startTime!=null){
+								startTime += " "+rData.startTime;
+							}
+							return startTime;
+						}
+					},
+					{
+						name : "endTime",
+						index : "endTime",
+						align : "center",
+						width : 80,
+						sortable : false,
+						formatter : function(value, options, rData) {
+							var endTime = "";
+							if(rData.endDate!=null){
+								endTime += rData.endDate;
+							}
+							if(rData.endTime!=null){
+								endTime += " "+rData.endTime;
+							}
+							return endTime;
+						}
+					},
+					/*{
+						name : "cannelDate",
+						index : "cannelDate",
+						align : "center",
+						width : 80,
+						sortable : false,
+						formatter : function(value, options, rData) {
+							var endTime = "";
+							if(rData.cannelDate!=null){
+								endTime += rData.cannelDate;
+							}
+							if(rData.cannelTime!=null){
+								endTime += " "+rData.cannelTime;
+							}
+							return endTime;
+						}
+					},*/
+					{
+						name : "optPeopleName",
+						index : "optPeopleName",
+						align : "center",
+						width : 80,
+						sortable : false,
+						formatter : function(value, options, rData) {
+							
+							return value;
+						}
+					},
+					{
+						name : "status",
+						index : "status",
+						align : "center",
+						width : 80,
+						formatter : function(value, options, rData) {
+							var status = "";
+							if(rData.status==0){
+								status = "待生效(Pending Effective)";
+							}else if(rData.status==1){
+								status = "生效中(Effective)";
+							}else if(rData.status==2){
+								status = "正常结束(Closed)";
+							}else if(rData.status==3){
+//								status = "提前收回";
+								status = "撤销(Revoked)";
+							}else if(rData.status==4){
+								status = "撤销(Revoked)";
+							}
+							return status;
+						}
+					},{
+					    name : "id",
+					    index : "id",
+					    width : 90,
+					    align : "center",
+					    sortable : false,
+					    formatter : function(value, options, rData) {
+//					    	if(rData.status == 0 ){
+//					    		return "<input type='button' id='cancelBtn' style='color:#333;' onclick='cannel(\"" + value + "," + rData.status + "\");' value='撤销(cancel)' />&nbsp;"+
+//								"<input type='button' id='takeBackBtn' disabled='disabled' style='color:#333;' onclick='takeBack(\""+ value + "," + rData.status + "\");' value='提前收回(Recovery in advance)' />&nbsp;";
+//					    	}else if(rData.status == 1){
+//					    		return "<input type='button' id='cancelBtn' disabled='disabled' style='color:#333;' onclick='cannel(\"" + value + "," + rData.status + "\");' value='撤销(cancel)' />&nbsp;"+
+//								"<input type='button' id='takeBackBtn' style='color:#333;' onclick='takeBack(\""+ value + "," + rData.status + "\");' value='提前收回(Recovery in advance)' />&nbsp;";
+//					    	}else{
+//					    		return "<input type='button' id='cancelBtn'disabled='disabled' style='color:#333;' onclick='cannel(\"" + value + "," + rData.status + "\");' value='撤销(cancel)' />&nbsp;"+
+//								"<input type='button' id='takeBackBtn' disabled='disabled' style='color:#333;' onclick='takeBack(\""+ value + "," + rData.status + "\");' value='提前收回(Recovery in advance)' />&nbsp;";
+//					    	}
+//					    	if(peopleType!='1'&&peopleType!='2'){//登录人是普通用户
+//								return;
+//							}
+					    	if(rData.revicePeopleNo==login_People.peopleCode){//接收人没有操作按钮
+					    		return;
+					    	}
+					    	if(rData.status == 0 ){
+					    		return "<input type='button' id='cancelBtn' style='color:#333;' onclick='cannel(\"" + value + "," + rData.status + "\");' value='撤销(Revoke)' />&nbsp;";
+					    	}else if(rData.status == 1){
+					    		return "<input type='button' id='takeBackBtn' style='color:#333;' onclick='takeBack(\""+ value + "," + rData.status + "\");' value='撤销(Revoke)' />&nbsp;";
+					    	}else{
+					    		return;
+//					    		return "<input type='button' id='cancelBtn'disabled='disabled' style='color:#333;' onclick='cannel(\"" + value + "," + rData.status + "\");' value='撤销(cancel)' />&nbsp;";
+					    	}
+					    }
+					}],
+			pager : "#transferPowerInfoPager",
+			caption : "审批人权限委托授权(Chop Authorizing Delegation)"
+		}).trigger("reloadGrid");
+	$("#transferPowerInfoList").navGrid("#transferPowerInfoPager", {
+		edit : false,
+		add : false,
+		del : false,
+		search : false,
+		refresh : true
+	});
+}
+//显示信息
+function showMsg(msg) {
+	$("#msg").html(msg);
+}
+
+/**
+ * 查询数据，执行查询
+ */
+function queryData() {
+	var ge_startDate = $("#ge_startDate").val();
+	var le_startDate = $("#le_startDate").val();
+	if(ge_startDate == ""){
+		if(le_startDate != ""){
+			alert("授权生效日开始时间不能为空！")
+			return;
+		}
+	}else{
+		if(le_startDate == ""){
+			alert("授权生效日结束时间不能为空！")
+			return;
+		}
+	}
+	if(ge_startDate > le_startDate){
+		alert("授权生效日开始时间不能大于结束时间！")
+		return;
+	}
+	var ge_endDate = $("#ge_endDate").val();
+	var le_endDate = $("#le_endDate").val();
+	if(ge_endDate == ""){
+		if(le_endDate != ""){
+			alert("授权截止日开始时间不能为空！")
+			return;
+		}
+	}else{
+		if(le_endDate == ""){
+			alert("授权截止日结束时间不能为空！")
+			return;
+		}
+	}
+	if(ge_endDate > le_endDate){
+		alert("授权截止日开始时间不能大于结束时间！")
+		return;
+	}
+	$("#transferPowerInfoList").jqGrid("search", "#transferPowerQueryForm");
+}
+
+/**
+ * 重置查询条件
+ */
+function resetQuery() {
+	$("#ge_startDate").val("");
+	$("#le_startDate").val("");
+	$("#transferPowerQueryForm")[0].reset();
+}
+
+//显示预约界面
+function showReservePage() {
+	/*if(enableSupervisePeople=="true"){
+		top.showPage(ctx + "/transferPowerInfoAction_showReservePage.action", null,
+				"预约", 420, 308);
+	} else {
+		top.showPage(ctx + "/transferPowerInfoAction_showReservePage.action", null,
+				"预约", 420, 258);
+	}*/
+	$.ajax({
+		type : "post",
+		url : ctx + "/transferPowerInfoAction_showReserveWPage.action",
+		data : "",
+		dataType : "json",
+		async : false,
+		complete : function(XMLHttpRequest, textStatus) {
+			if (XMLHttpRequest.readyState == "0" || XMLHttpRequest.status != "200") {
+				//result.response = "服务器或网络异常";
+			}
+		},
+		success : function(response) {
+			document.getElementById("sealautoId").value = response.sealapprovalpeopls;
+			
+			$("#sealapprovalpeople").empty();
+			$("#sealapprovalpeople").append("<option value='' ></option>");
+			$.each(response.allList, function(i) {
+				$("#sealapprovalpeople").append("<option value=" + response.allList[i].peopleCode+ " >" + response.allList[i].peopleName + "</option>");
+			})
+			
+			//当登录人是审核人时，不能选择审核人
+			if(response.apprOrManager=='1'){
+				$("#sealapprovalpeople").empty();
+				$("#sealapprovalpeople").append("<option value=" + login_People.peopleCode+ " >" + login_People.peopleName + "</option>");
+				
+				$("#sealapprovalpeople").val(login_People.peopleCode);
+				$("#sealapprovalpeople").attr("disabled","true");
+				$("#selectBtn").attr("disabled","true");
+			}
+//			$.each(response.allList, function(i) {
+//				if(login_People.peopleCode==response.allList[i].peopleCode){
+//					$("#sealapprovalpeople").val(login_People.peopleCode);
+//					$("#sealapprovalpeople").attr("disabled","true");
+//				}
+//			})
+//			apprPeoples();
+			
+			$("#reviceSealName").empty();
+			$.each(response.sealNames, function(i) {
+				var temp=response.sealNames[i][0];
+				temp+="审批人";
+				
+				$("#reviceSealName").append("<option value='" + temp+','+response.sealNames[i][1]+ "' >" + temp + "</option>");
+			})
+			$("#applicationFormNo").val(response.applicationFormNo);
+			$("#applicationFormNo").attr("disabled","true");
+			$("#revicePeopleNo").val("");
+			$("#revicePeopleName").val("");
+			$("#AddTransferPowerInfoDLG").dialog("open");
+		}
+	});
+}
+
+function gradeChange(div){
+	var objs=document.getElementById(div);
+	//原本获取第一个值，但是egde第一个值为空会报错
+	if(window.showModalDialog==undefined){
+		var grade=objs.options[1].value;
+	}else{
+		var grade=objs.options[objs.selectedIndex].value;
+	}
+	$.ajax({
+		type : "post",
+		url : ctx + "/transferPowerInfoAction_querySealName.action",
+		data : {
+			'xPeopleInfo.peopleCode':grade
+		},
+		dataType : "json",
+		async : false,
+		complete : function(XMLHttpRequest, textStatus) {
+			if (XMLHttpRequest.readyState == "0" || XMLHttpRequest.status != "200") {
+				//result.response = "服务器或网络异常";
+			}
+		},
+		success : function(response) {
+			$("#reviceSealName").empty();
+			$.each(response.sealNames, function(i) {
+				var temp=response.sealNames[i][0];
+				temp+="审批人";
+				$("#reviceSealName").append("<option value='" + temp+','+response.sealNames[i][1]+ "' >" + temp + "</option>");
+			})
+		}
+	});
+	
+}
+
+function apprPeoples(){
+	var params = {
+			'roleGroupSid':'shenpi'
+	};
+	$.post(ctx+"/peopleUseSeal/peopleUseSealInfoAction_findPeopleByRoleGroup.action",params,function(data){
+		if(data.responseMessage.success){
+			var apprPeoples=data.list;
+			var sealTypeContent = "<option value=' '>请选择</option>";
+//			for ( var key in apprPeoples) {
+//				sealTypeContent += "<option value='" + key + "'>" + apprPeoples[key] + "</option>";
+//			}
+			for(var i=0;i<apprPeoples.length;i++){
+				sealTypeContent += "<option value='" + apprPeoples[i]['peopleCode'] + "'>" + apprPeoples[i]['peopleCode'] + "</option>";
+			}
+			$("#sealapprovalpeople").html(sealTypeContent);
+			
+		}else{
+			alert(data.responseMessage.message);
+		}
+	});
+}
+// 取消
+function cannel(id) {
+	var arr = id.split(',');
+	if (arr[1] != 0 ){
+		top.wfAlert("不是预约状态无法撤销");
+		return;
+	}
+	if (confirm("确定要撤销吗？")) {
+		var url = ctx + "/transferPowerInfoAction_cancel.action";
+		var param = {
+			"transferPowerInfo.id" : arr[0]
+		};
+		$.post(url, param, function(data) {
+			var obj = $.parseJSON(data);
+			top.wfAlert(obj.data.msg);
+			refresh();
+			return;
+		});
+	}
+}
+// 提前收回
+function takeBack(id) {
+	var arr = id.split(',');
+	if (arr[1] != 1 ){
+		top.wfAlert("不是进行中状态无法提前收回");
+		return;
+	}
+	if (confirm("确定要提前收回吗？")) {
+		var url = ctx + "/transferPowerInfoAction_takeBack.action";
+		var param = {
+			"transferPowerInfo.id" : arr[0]
+		};
+		$.post(url, param, function(data) {
+			var obj = $.parseJSON(data);
+			top.wfAlert(obj.data.msg);
+			refresh();
+			return;
+		});
+	}
+}
+
+/**
+ * 查询当前机构下的人员
+ */
+function fechPeopleList(){
+	 var param = {
+		"orgNo" : $("#sealOrgNo").val()
+	 };
+    var url = ctx + "/mechseal/sealinstall/sealInstallConfigAction_findPersonnelsByOrgNo.action";
+    var data = tool.ajaxRequest(url, param);
+    if(data.success && data.response.responseMessage.data != null && data.response.responseMessage.data != undefined){
+    	$("#revicePeopleNo").empty();
+    	$("#revicePeopleNo").append("<option value = ''>"+"---全部---"+"</option>");
+    	var peopleList = data.response.responseMessage.data;
+    	$.each(peopleList, function(i, people){
+    		$("#revicePeopleNo").append("<option value = '" + people.sid + "'>" + people.personnelName + "</option>");
+    	});
+    }
+}
+
+function refresh(){
+	$("#transferPowerInfoList").jqGrid("search", "#transferPowerQueryForm");
+}
+
+//审批人
+//function apprPeopleSelect() {
+//	var sealautoId= $("#sealautoId").val();
+//	if(sealautoId==""){
+//		alert("没有印章！");
+//		return;
+//	}
+//	var params={
+//			"sealautoId":sealautoId,
+//			"login_People":login_People
+//	};
+////	var returnValue = window.showModalDialog(ctx+"/3x/mech/sealuse/sealUseTask/ui/sealUseApplyHfQueryPeople.jsp",sealautoId,"dialogWidth=880px;dialogHeight=510px;resizable:no;dialogLeft:350px;dialogTop:100px;status:no;scroll:no;resizable:no");
+////	var returnValue = window.showModalDialog(ctx+"/windforce/am/transfer/util/ui/sealUseApplyHfQueryPeople.jsp",params,"dialogWidth=880px;dialogHeight=510px;resizable:no;dialogLeft:350px;dialogTop:100px;status:no;scroll:no;resizable:no");
+//	//Chrome 37后也禁用了对showModalDialog的默认支持，通过以下判断具体执行哪一种
+//	if(window.showModalDialog==undefined){
+//		returnValue = window.open(ctx+'/windforce/am/transfer/util/ui/sealUseApplyHfQueryPeople.jsp?sealautoId=' + sealautoId + '&orgNo=' + login_People.orgNo + '&orgName=' + login_People.orgName + '&orgSid=' + login_People.orgSid,'','width=880,height=510,left=350,top=100,toolbar=no,menubar=no,scrollbars=no,resizable=no,location=no,status=no');
+//	}else{
+//		returnValue = window.showModalDialog(ctx+"/windforce/am/transfer/util/ui/sealUseApplyHfQueryPeople.jsp",params,"dialogWidth=880px;dialogHeight=510px;resizable:no;dialogLeft:350px;dialogTop:100px;status:no;scroll:no;resizable:no");
+//	}
+//	if(returnValue==undefined){
+//		return;
+//	}
+//	//其他浏览器照常
+//	if(window.showModalDialog!=undefined){
+//		 $("#sealapprovalpeople").val(returnValue.peopleCode);
+//	}
+//	gradeChange('sealapprovalpeople');
+////	document.getElementById("apprPeopleName").value = returnValue.peopleName;
+////	document.getElementById("apprPeopleSid").value = returnValue.sid;
+//}
+
+/**
+ * 选择审批人页面搜索栏中选择机构
+ */
+function checkOrganizationItem(organizationNo) {
+//	var organizationSid = "00000000000000000000000000000000";
+	var organizationSid = login_People.orgSid;
+	$("#organizationSid_Item").dialogOrgTree("radio", organizationSid, false, null, null, function(event, treeId, treeNode) {
+		if (treeNode) {
+			$("#organizationSid_Item").val(treeNode.organizationName + "(" + treeNode.organizationNo + ")");
+			$("#sealOrgNo").val(treeNode.organizationNo);
+		}
+	});
+}
+
+/**
+ * 选择审批人页面根据输入框的值重新加载数据
+ */
+function queryApplyInfoForTerm() {
+	$("#approverList").jqGrid("search", "#queryFormApprover");
+};
+
+/**
+ * 关闭审批人授权提示弹框
+ */
+function Cancel(){
+	$('.mask').addClass('hide');
+};
+
+function Continue(){
+	$.post(ctx + "/transferPowerInfoAction_reserveW.action", paramCs, function(data) {
+		var obj = $.parseJSON(data);
+		showMsg(obj.data.msg);
+		if (obj.data.ok == true) {
+			refresh();
+			$("#AddTransferPowerInfoDLG").dialog("close");
+		}
+		return;
+	});
+	$('.mask').addClass('hide');
+};
