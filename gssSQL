@@ -1,0 +1,5 @@
+select b.application_Form_No,a.sealorgno,a.sealname,b.transfer_people_name,b.transfer_people_no,b.revice_people_name,b.revice_people_no,b.start_date||' '||b.start_time startDateTime,b.end_date||' '||b.end_time endDateTime,b.status from gss_sealinstallconfig  a left join am_transfer_power_info b on transfer_people_id = elelockpeople  where 
+   b.transclas=0 
+   and b.start_date>='2020-06-13' 
+   and b.start_date<='2022-06-13' 
+   and sealorgno ='TJNDMOffice' order by b.start_date||' '||b.start_time DESC,status;
