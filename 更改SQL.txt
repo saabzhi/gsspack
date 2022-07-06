@@ -1,3 +1,27 @@
+truncate table to_buysale_item;
+truncate table to_buysale_forward;
+truncate table to_buysale_forexswap;
+truncate table to_buysale_currencyswap;
+truncate table to_buysale_option;
+ 
+truncate table tb_buysale_item;
+truncate table tb_buysale_forward;
+truncate table tb_buysale_forexswap;
+truncate table tb_buysale_currencyswap;
+truncate table tb_buysale_option;
+========================================== 
+truncate table to_derivativetrade_item;
+truncate table to_derivativetrade_option;
+truncate table to_derivativetrade_future;
+truncate table to_tradefinancing_consign;
+truncate table to_derivativetrade_forward;
+ 
+truncate table tb_derivativetrade_item;
+truncate table tb_derivativetrade_option;
+truncate table tb_derivativetrade_future;
+truncate table tb_tradefinancing_consign;
+truncate table tb_derivativetrade_forward; 
+
 update AM_TRANSFER_POWER_INFO set status='2', END_TIME='2019-10-31 23:59:30' where APPLICATION_FORM_NO='NO1570678862180';
 
 -- update AM_TRANSFER_POWER_INFO set status='3', END_TIME='2019-10-11 16:05:00' where APPLICATION_FORM_NO='NO1570679040418';
